@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Tracker</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <header>
+    <h1>Real-Time Cryptocurrency Tracker</h1>
+    <div id="preferences">
+      <label>
+        <input type="checkbox" id="toggle-24h-change" /> Show 24h Change
+      </label>
+      <label for="sort-options">Sort by:</label>
+      <select id="sort-options">
+        <option value="market_cap_desc">Market Cap</option>
+        <option value="price_desc">Price</option>
+      </select>
+    </div>
+  </header>
+
+  <main>
+    <section id="crypto-list">
+      <!-- Cryptocurrencies will be dynamically inserted here -->
+    </section>
+
+    <section id="comparison-section">
+      <h2>Comparison (Max 5)</h2>
+      <div id="comparison-box"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Crypto Tracker by Dinka</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+<script>
+    // script.js
+
+const API_URL = 'https://api.coingecko.com/api/v3/coins/markets';
+const CURRENCY = 'usd';
+const MAX_COMPARE = 5;
+
+let show24hChange = false;
+let sortOption = 'market_cap_desc';
+let selectedCryptos = JSON.parse(localStorage.getItem('selectedCryptos')) || [];
+
+const cryptoListEl = document.getElementById('crypto-list');
+const comparisonBox = document.getElementById('comparison-box');
+const toggle24h = document.getElementById('toggle-24h-change');
+const sortDropdown = document.getElementById('sort-options');
+
+async function fetchCryptoData() {
+  const url = `${API_URL}?vs_currency=${CURRENCY}&order=${sortOption}&per_page=50&page=1&sparkline=false`;
+  const res = await fetch(url);
+  const data = await res.json();
+  renderCryptoList(data);
+  renderComparison(data);
+}
+
+function renderCryptoList(data) {
+  cryptoListEl.innerHTML = '';
+  data.forEach(coin => {
+    const card = document.createElement('div');
+    card.className = 'crypto-card';
+    card.innerHTML = `
+      <h3>${coin.name} (${coin.symbol.toUpperCase()})</h3>
+      <p>Price: $${coin.current_price.toLocaleString()}</p>
+      ${show24hChange ? `<p>24h Change: ${coin.price_change_percentage_24h?.toFixed(2)}%</p>` : ''}
+      <p>Market Cap: $${coin.market_cap.toLocaleString()}</p>
+      <button onclick="toggleCompare('${coin.id}')">
+        ${selectedCryptos.includes(coin.id) ? 'Remove from' : 'Add to'} Compare
+      </button>
+    `;
+    cryptoListEl.appendChild(card);
+  });
+}
+
+function renderComparison(data) {
+  comparisonBox.innerHTML = '';
+  selectedCryptos.forEach(id => {
+    const coin = data.find(c => c.id === id);
+    if (coin) {
+      const card = document.createElement('div');
+      card.className = 'compare-card';
+      card.innerHTML = `
+        <h4>${coin.name} (${coin.symbol.toUpperCase()})</h4>
+        <p>Price: $${coin.current_price.toLocaleString()}</p>
+        ${show24hChange ? `<p>24h Change: ${coin.price_change_percentage_24h?.toFixed(2)}%</p>` : ''}
+        <p>Market Cap: $${coin.market_cap.toLocaleString()}</p>
+      `;
+      comparisonBox.appendChild(card);
+    }
+  });
+}
+
+function toggleCompare(id) {
+  const index = selectedCryptos.indexOf(id);
+  if (index > -1) {
+    selectedCryptos.splice(index, 1);
+  } else {
+    if (selectedCryptos.length >= MAX_COMPARE) {
+      alert('You can only compare up to 5 cryptocurrencies.');
+      return;
+    }
+    selectedCryptos.push(id);
+  }
+  localStorage.setItem('selectedCryptos', JSON.stringify(selectedCryptos));
+  fetchCryptoData();
+}
+
+// Preferences handlers
+toggle24h.addEventListener('change', e => {
+  show24hChange = e.target.checked;
+  fetchCryptoData();
+});
+
+sortDropdown.addEventListener('change', e => {
+  sortOption = e.target.value;
+  fetchCryptoData();
+});
+
+// Initial load
+fetchCryptoData();
+setInterval(fetchCryptoData, 60000); // refresh every 60 seconds
+
+</script>
+</html>
